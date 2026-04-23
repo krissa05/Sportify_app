@@ -155,7 +155,7 @@ const DashboardPage = () => {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-txt-primary">
-            Welcome back, <span className="text-primary">{DEMO_USER}</span> 👋
+            Welcome back, <span className="text-primary">{DEMO_USER.name}</span> 👋
           </h1>
         </div>
         <div className="relative">
