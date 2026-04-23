@@ -18,26 +18,16 @@ const SignupPage = () => {
   };
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
-    setError('');
-
-    if (formData.password !== formData.confirmPassword) {
-      return setError('Passwords do not match');
-    }
-    if (formData.password.length < 6) {
-      return setError('Password must be at least 6 characters');
-    }
-
-    setLoading(true);
-    try {
-      await signup({ name: formData.name, email: formData.email, password: formData.password });
-      navigate('/dashboard');
-    } catch (err) {
-      setError(err.response?.data?.message || 'Signup failed.');
-    } finally {
-      setLoading(false);
-    }
-  };
+  e.preventDefault();
+  // Fake login - bypass backend
+  localStorage.setItem('sportify_token', 'fake-demo-token');
+  localStorage.setItem('sportify_user', JSON.stringify({
+    _id: '123',
+    name: 'Demo User',
+    email: 'demo@sportify.com'
+  }));
+  navigate('/dashboard');
+};
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary via-primary-dark to-primary flex items-center justify-center p-4">

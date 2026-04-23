@@ -16,6 +16,13 @@ const LoginPage = () => {
 
   const handleSubmit = async (e) => {
   e.preventDefault();
+  // Fake login - bypass backend
+  localStorage.setItem('sportify_token', 'fake-demo-token');
+  localStorage.setItem('sportify_user', JSON.stringify({
+    _id: '123',
+    name: 'Demo User',
+    email: 'demo@sportify.com'
+  }));
   navigate('/dashboard');
 };
 
