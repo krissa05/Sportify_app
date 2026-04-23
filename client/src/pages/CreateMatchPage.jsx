@@ -1,0 +1,363 @@
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import api from '../services/api';
+import { useAuth } from '../context/AuthContext';
+import { MdSportsCricket } from 'react-icons/md';
+import SearchableSelect from '../components/SearchableSelect';
+
+const CreateMatchPage = () => {
+  const navigate = useNavigate();
+  const { user } = useAuth();
+  const [tournaments, setTournaments] = useState([]);
+  const [teams, setTeams] = useState([]);
+  const [selectedTournament, setSelectedTournament] = useState(null);
+  const [form, setForm] = useState({
+    tournamentId: '', team1Id: '', team2Id: '', matchDate: '', venue: '', totalOvers: 20, playersPerTeam: 11
+  });
+  const [team1SelectedPlayers, setTeam1SelectedPlayers] = useState([]);
+  const [team2SelectedPlayers, setTeam2SelectedPlayers] = useState([]);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+
+  // Get team details by ID
+  const getTeamDetails = (teamId) => {
+    return teams.find(t => t._id === teamId);
+  };
+
+  // Get required players count dynamically
+  const getRequiredPlayers = () => {
+    if (selectedTournament && selectedTournament.playersPerTeam) {
+      return selectedTournament.playersPerTeam;
+    }
+    return form.playersPerTeam || 11;
+  };
+
+  // Check if team has the required amount of players
+  const hasCompleteSquad = (teamId) => {
+    const team = getTeamDetails(teamId);
+    return team && team.players && team.players.length >= getRequiredPlayers();
+  };
+
+  // Get player count for display
+  const getPlayerCount = (teamId) => {
+    const team = getTeamDetails(teamId);
+    return team ? (team.players?.length || 0) : 0;
+  };
+
+  // Calculate current date and time in the correct local format (IST / Local safe)
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = String(today.getMonth() + 1).padStart(2, '0');
+  const day = String(today.getDate()).padStart(2, '0');
+  const hours = String(today.getHours()).padStart(2, '0');
+  const minutes = String(today.getMinutes()).padStart(2, '0');
+  const currentDateTime = `${year}-${month}-${day}T${hours}:${minutes}`;
+
+  // Calculate min/max datetime based on selected tournament
+  const getMinMaxDateTime = () => {
+    if (!selectedTournament) {
+      return { min: currentDateTime, max: '' };
+    }
+
+    const tourStart = new Date(selectedTournament.startDate);
+    tourStart.setHours(0, 0, 0, 0);
+    tourStart.setMinutes(tourStart.getMinutes() - tourStart.getTimezoneOffset());
+    
+    const tourEnd = new Date(selectedTournament.endDate);
+    tourEnd.setHours(23, 59, 59, 999);
+    tourEnd.setMinutes(tourEnd.getMinutes() - tourEnd.getTimezoneOffset());
+
+    // Use the later of tournament start or current time
+    const now = new Date();
+    const minDate = tourStart > now ? tourStart : now;
+    const minDateTime = minDate.toISOString().slice(0, 16);
+    const maxDateTime = tourEnd.toISOString().slice(0, 16);
+
+    return { min: minDateTime, max: maxDateTime };
+  };
+
+  const { min: minDateTime, max: maxDateTime } = getMinMaxDateTime();
+
+  useEffect(() => {
+    api.get('/tournaments')
+      .then(res => {
+        // Only allow creating matches in tournaments owned by the current user
+        const ownedTournaments = res.data.data.filter(t => {
+          const orgId = t.organizerId?._id || t.organizerId;
+          return orgId === user?._id || orgId === user?.id;
+        });
+        setTournaments(ownedTournaments);
+      })
+      .catch(console.error);
+  }, [user]);
+
+  useEffect(() => {
+    if (form.tournamentId) {
+      // Find and set the selected tournament
+      const tournament = tournaments.find(t => t._id === form.tournamentId);
+      setSelectedTournament(tournament);
+      
+      api.get(`/teams?tournamentId=${form.tournamentId}`)
+        .then(res => setTeams(res.data.data))
+        .catch(console.error);
+    } else {
+      setSelectedTournament(null);
+      // Change from my-teams to global teams to allow selecting any team for independent matches
+      api.get('/teams')
+        .then(res => setTeams(res.data.data))
+        .catch(console.error);
+    }
+    // Reset selected players when tournament or teams change
+    setTeam1SelectedPlayers([]);
+    setTeam2SelectedPlayers([]);
+  }, [form.tournamentId, tournaments]);
+
+  const togglePlayerSelection = (teamNum, playerId) => {
+    const required = getRequiredPlayers();
+    if (teamNum === 1) {
+      setTeam1SelectedPlayers(prev => {
+        if (prev.includes(playerId)) return prev.filter(id => id !== playerId);
+        if (prev.length < required) return [...prev, playerId];
+        return prev;
+      });
+    } else {
+      setTeam2SelectedPlayers(prev => {
+        if (prev.includes(playerId)) return prev.filter(id => id !== playerId);
+        if (prev.length < required) return [...prev, playerId];
+        return prev;
+      });
+    }
+  };
+
+  const autoSelectPlayers = (teamNum, players) => {
+    const ids = players.map(p => p._id);
+    if (teamNum === 1) setTeam1SelectedPlayers(ids);
+    else setTeam2SelectedPlayers(ids);
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError('');
+
+    if (form.team1Id === form.team2Id) {
+      return setError('Team 1 and Team 2 cannot be the same');
+    }
+
+    // Check if both teams have 11 players
+    const team1 = getTeamDetails(form.team1Id);
+    const team2 = getTeamDetails(form.team2Id);
+    // Validation removed as per user request to allow more flexibility during testing/setup
+    // But we still require team selection
+    if (!form.team1Id || !form.team2Id) {
+      return setError('Please select both teams');
+    }
+
+    const required = getRequiredPlayers();
+    if (team1.players.length > required && team1SelectedPlayers.length !== required) {
+      return setError(`Please select exactly ${required} players for ${team1.teamName}`);
+    }
+    if (team2.players.length > required && team2SelectedPlayers.length !== required) {
+      return setError(`Please select exactly ${required} players for ${team2.teamName}`);
+    }
+
+    setSaving(true);
+    try {
+      const payload = {
+        ...form,
+        team1Players: team1.players.length > required ? team1SelectedPlayers : team1.players.map(p => p._id),
+        team2Players: team2.players.length > required ? team2SelectedPlayers : team2.players.map(p => p._id),
+      };
+      const res = await api.post('/matches', payload);
+      navigate(`/match/${res.data.data._id}/score`);
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to create match');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="max-w-2xl mx-auto">
+      <div className="card">
+        <div className="flex items-center space-x-3 mb-6">
+          <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+            <MdSportsCricket className="text-xl text-primary" />
+          </div>
+          <div>
+            <h1 className="text-xl font-bold text-txt-primary">Create Match</h1>
+            <p className="text-sm text-txt-muted">Schedule a new cricket match</p>
+          </div>
+        </div>
+
+        {error && (
+          <div className="bg-danger/10 border border-danger/20 text-danger text-sm rounded-lg p-3 mb-4 animate-fade-in">{error}</div>
+        )}
+
+        <form onSubmit={handleSubmit} className="space-y-5">
+          <div>
+            <label className="label">Tournament (Optional)</label>
+            <select value={form.tournamentId}
+              onChange={e => setForm({ ...form, tournamentId: e.target.value, team1Id: '', team2Id: '' })}
+              className="input">
+              <option value="">No Tournament (Independent Match)</option>
+              {tournaments.map(t => <option key={t._id} value={t._id}>{t.name}</option>)}
+            </select>
+          </div>
+
+          {!form.tournamentId && (
+            <div className="bg-primary/5 p-4 rounded-xl border border-primary/10">
+              <label className="label text-primary font-bold">Required Players Per Team</label>
+              <p className="text-[10px] text-txt-muted mb-2 uppercase font-medium">Both teams must have exactly this many players to start the match.</p>
+              <input type="number" min="2" max="22" value={form.playersPerTeam} onChange={e => setForm({ ...form, playersPerTeam: Number(e.target.value) })}
+                className="input border-primary/20 focus:border-primary" required />
+            </div>
+          )}
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="label font-bold">Team 1 (Batting/Bowling)</label>
+              <SearchableSelect
+                options={teams.filter(t => t._id !== form.team2Id)}
+                value={form.team1Id}
+                onChange={(val) => setForm({ ...form, team1Id: val })}
+                placeholder="Select team"
+                getOptionLabel={(t) => t.teamName}
+                getOptionSublabel={(t) => {
+                  const playerCount = t.players?.length || 0;
+                  const req = getRequiredPlayers();
+                  return `${playerCount}/${req} Players ${playerCount === req ? '✓' : '(Incomplete)'}`;
+                }}
+              />
+            </div>
+            <div>
+              <label className="label font-bold">Team 2 (Opponent)</label>
+              <SearchableSelect
+                options={teams.filter(t => t._id !== form.team1Id)}
+                value={form.team2Id}
+                onChange={(val) => setForm({ ...form, team2Id: val })}
+                placeholder="Select team"
+                getOptionLabel={(t) => t.teamName}
+                getOptionSublabel={(t) => {
+                  const playerCount = t.players?.length || 0;
+                  const req = getRequiredPlayers();
+                  return `${playerCount}/${req} Players ${playerCount === req ? '✓' : '(Incomplete)'}`;
+                }}
+              />
+            </div>
+          </div>
+
+          {/* Player Selection UI for Team 1 */}
+          {form.team1Id && getTeamDetails(form.team1Id)?.players?.length > getRequiredPlayers() && (
+            <div className="card bg-surface-alt border border-surface-border p-4 animate-fade-in translate-y-[-10px]">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-sm font-black uppercase tracking-widest text-primary">Select Playing {getRequiredPlayers()} for {getTeamDetails(form.team1Id)?.teamName}</h3>
+                <span className="text-xs font-bold text-txt-muted">{team1SelectedPlayers.length} / {getRequiredPlayers()} Selected</span>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                {getTeamDetails(form.team1Id)?.players?.map(p => (
+                  <button
+                    key={p._id}
+                    type="button"
+                    onClick={() => togglePlayerSelection(1, p._id)}
+                    className={`p-2 text-xs rounded-lg border-2 transition-all flex items-center gap-2 ${team1SelectedPlayers.includes(p._id) ? 'border-primary bg-primary/5 text-primary' : 'border-surface-border bg-white text-txt-secondary opacity-60'}`}
+                  >
+                    <div className={`w-3 h-3 rounded-sm border ${team1SelectedPlayers.includes(p._id) ? 'bg-primary border-primary' : 'bg-transparent border-txt-muted/30'}`}></div>
+                    <span className="truncate font-bold">{p.name}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Player Selection UI for Team 2 */}
+          {form.team2Id && getTeamDetails(form.team2Id)?.players?.length > getRequiredPlayers() && (
+            <div className="card bg-surface-alt border border-surface-border p-4 animate-fade-in translate-y-[-10px]">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-sm font-black uppercase tracking-widest text-secondary">Select Playing {getRequiredPlayers()} for {getTeamDetails(form.team2Id).teamName}</h3>
+                <span className="text-xs font-bold text-txt-muted">{team2SelectedPlayers.length} / {getRequiredPlayers()} Selected</span>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                {getTeamDetails(form.team2Id)?.players?.map(p => (
+                  <button
+                    key={p._id}
+                    type="button"
+                    onClick={() => togglePlayerSelection(2, p._id)}
+                    className={`p-2 text-xs rounded-lg border-2 transition-all flex items-center gap-2 ${team2SelectedPlayers.includes(p._id) ? 'border-secondary bg-secondary/5 text-secondary' : 'border-surface-border bg-white text-txt-secondary opacity-60'}`}
+                  >
+                    <div className={`w-3 h-3 rounded-sm border ${team2SelectedPlayers.includes(p._id) ? 'bg-secondary border-secondary' : 'bg-transparent border-txt-muted/30'}`}></div>
+                    <span className="truncate font-bold">{p.name}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <label className="label">Match Date & Time</label>
+              <input type="datetime-local" value={form.matchDate}
+                min={minDateTime}
+                max={maxDateTime}
+                onChange={e => setForm({...form, matchDate: e.target.value})}
+                className="input" required />
+            </div>
+            <div>
+              <label className="label">Venue</label>
+              <input value={form.venue} onChange={e => setForm({...form, venue: e.target.value})}
+                className="input" placeholder="Wankhede Stadium" required />
+            </div>
+            <div>
+              <label className="label">Overs</label>
+              <div className="space-y-2">
+                <select 
+                  value={[5, 10, 20, 50].includes(form.totalOvers) ? form.totalOvers : 'custom'} 
+                  onChange={e => {
+                    const val = e.target.value;
+                    if (val === 'custom') {
+                      setForm({...form, totalOvers: 1}); // Initial custom value
+                    } else {
+                      setForm({...form, totalOvers: Number(val)});
+                    }
+                  }}
+                  className="input font-bold" required
+                >
+                  <option value={5}>5 Overs</option>
+                  <option value={10}>10 Overs</option>
+                  <option value={20}>20 Overs (T20)</option>
+                  <option value={50}>50 Overs (ODI)</option>
+                  <option value="custom">Custom Overs</option>
+                </select>
+                
+                {![5, 10, 20, 50].includes(form.totalOvers) && (
+                  <div className="animate-fade-in flex items-center space-x-2">
+                    <input 
+                      type="number" 
+                      min="1" 
+                      max="100" 
+                      value={form.totalOvers} 
+                      onChange={e => setForm({...form, totalOvers: Number(e.target.value)})}
+                      className="input w-24 border-primary/30 focus:border-primary font-bold"
+                      placeholder="e.g. 15"
+                    />
+                    <span className="text-sm font-bold text-txt-muted uppercase tracking-widest">Overs</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3 pt-2">
+            <button type="submit" disabled={saving || !hasCompleteSquad(form.team1Id) || !hasCompleteSquad(form.team2Id)} className="btn-primary flex-1 py-2.5" title={!hasCompleteSquad(form.team1Id) || !hasCompleteSquad(form.team2Id) ? `Both teams must have ${getRequiredPlayers()} players` : ''}>
+              {saving ? 'Creating...' : 'Create Match'}
+            </button>
+            <button type="button" onClick={() => navigate(-1)} className="btn-outline py-2.5 px-6">
+              Cancel
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
+
+export default CreateMatchPage;
