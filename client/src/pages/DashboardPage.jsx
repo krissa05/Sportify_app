@@ -4,7 +4,7 @@ import { MdSportsCricket } from 'react-icons/md';
 import { HiOutlinePlus, HiOutlineCollection, HiOutlineUserGroup, HiOutlineChevronDown } from 'react-icons/hi';
 
 // ===== FAKE DEMO DATA =====
-const DEMO_USER = { name: 'Bhavya' };
+const DEMO_USER = { name: 'Krissa' };
 
 const DEMO_LIVE_MATCHES = [
   {

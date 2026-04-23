@@ -3,10 +3,10 @@ import { Link } from 'react-router-dom';
 import { HiOutlinePlus, HiOutlineCalendar, HiOutlineSearch } from 'react-icons/hi';
 
 const DEMO_TOURNAMENTS = [
-  { _id: 'tour1', name: 'test4', startDate: '2026-03-31', endDate: '2026-04-04', teams: [{},{},{} ], organizerId: { name: 'Bhavya' }, status: 'completed' },
-  { _id: 'tour2', name: 'rupani', startDate: '2026-03-31', endDate: '2026-04-02', teams: [{},{}], organizerId: { name: 'Bhavya' }, status: 'completed' },
-  { _id: 'tour3', name: 'test_3', startDate: '2026-03-11', endDate: '2026-04-04', teams: [{},{}], organizerId: { name: 'Bhavya' }, status: 'completed' },
-  { _id: 'tour4', name: 'test_tournament_2', startDate: '2026-03-11', endDate: '2026-04-04', teams: [{},{}], organizerId: { name: 'Bhavya' }, status: 'completed' },
+  { _id: 'tour1', name: 'test4', startDate: '2026-03-31', endDate: '2026-04-04', teams: [{},{},{} ], organizerId: { name: 'Krissa' }, status: 'completed' },
+  { _id: 'tour2', name: 'rupani', startDate: '2026-03-31', endDate: '2026-04-02', teams: [{},{}], organizerId: { name: 'Krissa' }, status: 'completed' },
+  { _id: 'tour3', name: 'test_3', startDate: '2026-03-11', endDate: '2026-04-04', teams: [{},{}], organizerId: { name: 'Krissa' }, status: 'completed' },
+  { _id: 'tour4', name: 'test_tournament_2', startDate: '2026-03-11', endDate: '2026-04-04', teams: [{},{}], organizerId: { name: 'Krissa' }, status: 'completed' },
 ];
 
 const TournamentsPage = () => {
