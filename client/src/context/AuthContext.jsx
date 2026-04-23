@@ -23,29 +23,35 @@ export const AuthProvider = ({ children }) => {
   }, [token]);
 
   const login = async (email, password) => {
-    const res = await api.post('/auth/login', { email, password });
+    const res = await api.post('/api/auth/login', { email, password });
     const { token: newToken, user: userData } = res.data;
+
     localStorage.setItem('sportify_token', newToken);
     localStorage.setItem('sportify_user', JSON.stringify(userData));
+
     setToken(newToken);
     setUser(userData);
+
     return res.data;
   };
 
   const signup = async (userData) => {
-    const res = await api.post('/auth/signup', userData);
+    const res = await api.post('/api/auth/register', userData);
     const { token: newToken, user: newUser } = res.data;
+
     localStorage.setItem('sportify_token', newToken);
     localStorage.setItem('sportify_user', JSON.stringify(newUser));
+
     setToken(newToken);
     setUser(newUser);
+
     return res.data;
   };
 
   const logout = async () => {
     try {
       if (token) {
-        await api.post('/auth/logout');
+        await api.post('/api/auth/logout');
       }
     } catch (err) {
       console.error('Logout error:', err);
@@ -59,7 +65,12 @@ export const AuthProvider = ({ children }) => {
 
   return (
     <AuthContext.Provider value={{
-      user, token, loading, login, signup, logout,
+      user,
+      token,
+      loading,
+      login,
+      signup,
+      logout,
     }}>
       {children}
     </AuthContext.Provider>
