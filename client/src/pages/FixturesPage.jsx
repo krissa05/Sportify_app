@@ -1,57 +1,75 @@
-import { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import api from '../services/api';
-import { useSocket } from '../context/SocketContext';
-import LiveIndicator from '../components/LiveIndicator';
-import { HiOutlineCalendar, HiOutlineSun, HiOutlineMoon } from 'react-icons/hi';
+import { useState } from 'react';
+import { Link } from 'react-router-dom';
+import { HiOutlineCalendar } from 'react-icons/hi';
+
+const DEMO_MATCHES = [
+  {
+    _id: 'm1', status: 'live', venue: 'Wankhede Stadium',
+    matchDate: '2026-04-23T14:00:00',
+    tournamentId: { name: 'LOCAL SERIES' },
+    team1Id: { _id: 't1', teamName: 'Mumbai Indians' },
+    team2Id: { _id: 't2', teamName: 'Khaman Dhokla' },
+    scores: [
+      { teamId: 't1', runs: 90, wickets: 0, overs: '6.2' },
+      { teamId: 't2', runs: 0, wickets: 1, overs: '2.1' },
+    ],
+  },
+  {
+    _id: 'm2', status: 'live', venue: 'DY Patil Stadium',
+    matchDate: '2026-04-23T14:00:00',
+    tournamentId: { name: 'LOCAL SERIES' },
+    team1Id: { _id: 't3', teamName: 'Mumbai Indians' },
+    team2Id: { _id: 't4', teamName: 'RCB' },
+    scores: [
+      { teamId: 't3', runs: 11, wickets: 0, overs: '2.0' },
+      { teamId: 't4', runs: 22, wickets: 1, overs: '3.0' },
+    ],
+  },
+  {
+    _id: 'm3', status: 'completed', venue: 'Narendra Modi Stadium',
+    matchDate: '2026-04-20T14:00:00',
+    tournamentId: { name: 'LOCAL SERIES' },
+    team1Id: { _id: 't5', teamName: 'CSK' },
+    team2Id: { _id: 't6', teamName: 'KKR' },
+    resultMessage: 'CSK won by 24 runs',
+    scores: [
+      { teamId: 't5', runs: 187, wickets: 4, overs: '20.0' },
+      { teamId: 't6', runs: 163, wickets: 8, overs: '20.0' },
+    ],
+  },
+  {
+    _id: 'm4', status: 'completed', venue: 'Chinnaswamy Stadium',
+    matchDate: '2026-04-19T18:00:00',
+    tournamentId: { name: 'LOCAL SERIES' },
+    team1Id: { _id: 't7', teamName: 'RCB' },
+    team2Id: { _id: 't8', teamName: 'SRH' },
+    resultMessage: 'RCB won by 6 wickets',
+    scores: [
+      { teamId: 't7', runs: 201, wickets: 4, overs: '19.2' },
+      { teamId: 't8', runs: 198, wickets: 6, overs: '20.0' },
+    ],
+  },
+  {
+    _id: 'm5', status: 'scheduled', venue: 'Eden Gardens',
+    matchDate: '2026-04-25T14:00:00',
+    tournamentId: { name: 'LOCAL SERIES' },
+    team1Id: { _id: 't9', teamName: 'KKR' },
+    team2Id: { _id: 't10', teamName: 'DC' },
+    scores: [],
+  },
+  {
+    _id: 'm6', status: 'scheduled', venue: 'PCA Stadium',
+    matchDate: '2026-04-26T18:00:00',
+    tournamentId: { name: 'LOCAL SERIES' },
+    team1Id: { _id: 't11', teamName: 'PBKS' },
+    team2Id: { _id: 't12', teamName: 'GT' },
+    scores: [],
+  },
+];
 
 const FixturesPage = () => {
-  const navigate = useNavigate();
-  const [matches, setMatches] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all');
-  const { socket } = useSocket();
-
-  useEffect(() => { fetchMatches(); }, []);
-
-  useEffect(() => {
-    if (!socket) return;
-    socket.on('matchCreated', () => fetchMatches());
-    socket.on('matchStarted', () => fetchMatches());
-    socket.on('matchCompleted', () => fetchMatches());
-    return () => {
-      socket.off('matchCreated');
-      socket.off('matchStarted');
-      socket.off('matchCompleted');
-    };
-  }, [socket]);
-
-  const fetchMatches = async () => {
-    try {
-      const res = await api.get('/matches');
-      setMatches(res.data.data);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const filtered = filter === 'all' ? matches : matches.filter(m => m.status === filter);
-
-  const statusStyles = {
-    scheduled: 'badge-scheduled',
-    live: 'badge-live',
-    completed: 'badge-completed',
-  };
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-4 border-primary border-t-transparent"></div>
-      </div>
-    );
-  }
+  const filtered = filter === 'all' ? DEMO_MATCHES : DEMO_MATCHES.filter(m => m.status === filter);
 
   return (
     <div className="space-y-6">
@@ -63,145 +81,76 @@ const FixturesPage = () => {
         <div className="flex bg-surface-card rounded-lg border border-surface-border p-1">
           {['all', 'scheduled', 'live', 'completed'].map(f => (
             <button key={f} onClick={() => setFilter(f)}
-              className={`px-3 py-1.5 rounded-md text-xs font-medium capitalize transition-all ${
-                filter === f ? 'bg-primary text-white shadow-sm' : 'text-txt-secondary hover:text-primary'
-              }`}>{f}</button>
+              className={`px-3 py-1.5 rounded-md text-xs font-medium capitalize transition-all ${filter === f ? 'bg-primary text-white shadow-sm' : 'text-txt-secondary hover:text-primary'}`}>
+              {f}
+            </button>
           ))}
         </div>
       </div>
 
-      {filtered.length > 0 ? (
-        <div className="relative mt-8">
-          {/* Vertical Timeline Line */}
-          <div className="hidden md:block absolute left-[140px] top-6 bottom-0 w-px border-l border-dashed border-txt-muted/30"></div>
+      <div className="space-y-4">
+        {filtered.map((match, idx) => {
+          const matchDate = new Date(match.matchDate);
+          const s1 = match.scores?.[0];
+          const s2 = match.scores?.[1];
+          return (
+            <div key={match._id} className="flex flex-col md:flex-row gap-4 md:items-stretch group">
+              <div className="md:w-[140px] flex-shrink-0 flex flex-col items-start pt-2">
+                <div className="border border-accent/40 text-accent text-[10px] font-bold px-2 py-0.5 rounded-sm tracking-widest mb-2">
+                  MATCH {idx + 1}
+                </div>
+                <h3 className="text-base font-black text-txt-primary uppercase">
+                  {matchDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                </h3>
+                <p className="text-xs text-txt-muted">{matchDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}</p>
+              </div>
 
-          <div className="space-y-6">
-            {filtered.map((match, idx) => {
-              const matchDate = new Date(match.matchDate);
-              const hour = matchDate.getHours();
-              const isDay = hour >= 6 && hour < 18;
-              const timeString = matchDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
-
-              const team1Score = match.scores?.find(s => s.teamId?.toString() === (match.team1Id?._id || match.team1Id)?.toString());
-              const team2Score = match.scores?.find(s => s.teamId?.toString() === (match.team2Id?._id || match.team2Id)?.toString());
-
-              return (
-                <div key={match._id} className="relative flex flex-col md:flex-row gap-4 md:items-stretch group animate-slide-up">
-                  {/* Left Side: Timeline & Dates */}
-                  <div className="md:w-[140px] flex-shrink-0 flex flex-col items-start pt-5 relative md:pr-6 z-10">
-                    {/* Horizontal connector & dot (Desktop only) */}
-                    <div className="hidden md:flex absolute top-[30px] -right-[6px] items-center">
-                      <div className="w-12 border-t border-accent/40 mr-1 hidden lg:block"></div>
-                      <div className="w-8 border-t border-accent/40 mr-1 lg:hidden"></div>
-                      <div className="w-[11px] h-[11px] rounded-full bg-accent border-[3px] border-surface"></div>
+              <Link to={`/match/${match._id}`} className="flex-1 bg-surface-card border border-surface-border rounded-xl p-5 hover:shadow-card-lg hover:border-primary/20 transition-all">
+                <div className="flex items-center justify-between mb-4">
+                  <span className="text-xs text-txt-muted">{match.venue}</span>
+                  {match.status === 'live' ? (
+                    <span className="flex items-center gap-1 text-[10px] font-black text-accent uppercase">
+                      <span className="w-2 h-2 rounded-full bg-accent animate-pulse"></span>LIVE
+                    </span>
+                  ) : (
+                    <span className={`text-[10px] font-bold uppercase tracking-widest ${match.status === 'completed' ? 'text-txt-muted' : 'text-secondary'}`}>
+                      {match.status}
+                    </span>
+                  )}
+                </div>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3 flex-1">
+                    <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold border border-primary/20">
+                      {match.team1Id.teamName.charAt(0)}
                     </div>
-
-                    <div className="border border-accent/40 text-accent text-[10px] font-bold px-2 py-0.5 rounded-sm tracking-widest mb-3 bg-surface z-10 relative">
-                      MATCH {idx + 1}
-                      <div className="hidden md:block absolute top-[9px] -right-12 lg:-right-16 w-12 lg:w-16 border-t border-accent/40 -z-10"></div>
-                    </div>
-                    
-                    <h3 className="text-base font-black text-txt-primary uppercase tracking-tight">
-                      {matchDate.toLocaleDateString('en-US', { month: 'short' })}, {matchDate.toLocaleDateString('en-US', { weekday: 'short', day: 'numeric' })}
-                    </h3>
-                    
-                    <div className="flex items-center gap-1.5 text-xs text-txt-muted mt-1 font-medium">
-                      {isDay ? <HiOutlineSun className="text-sm" /> : <HiOutlineMoon className="text-sm" />}
-                      {timeString}
-                    </div>
+                    <span className="font-bold text-txt-primary">{match.team1Id.teamName}</span>
                   </div>
-
-                  {/* Right Side: Match Card */}
-                  <div className="flex-1 w-full bg-surface-card border border-surface-border rounded-xl overflow-hidden hover:shadow-card-lg transition-all group-hover:border-primary/20">
-                    <Link to={match.status === 'live' ? `/match/${match._id}/view` : `/match/${match._id}`} className="block p-5 sm:p-6">
-                      {/* Top row: Venue + Status */}
-                      <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
-                        <span className="text-[13px] text-txt-secondary font-medium">
-                          {match.venue ? match.venue : 'Venue TBA'}
-                        </span>
-                        {match.status === 'live' ? <LiveIndicator /> : (
-                          <span className={`${statusStyles[match.status]} text-[10px] scale-90 origin-right`}>{match.status}</span>
-                        )}
-                      </div>
-
-                      {/* Teams row */}
-                      <div className="flex items-center justify-between">
-                        {/* Team 1 */}
-                        <div 
-                          onClick={(e) => { e.stopPropagation(); navigate(`/teams/${match.team1Id._id}`); }}
-                          className="flex items-center gap-x-3 sm:gap-x-4 flex-1 cursor-pointer hover:opacity-80 transition-opacity">
-                          {match.team1Id?.logoURL ? (
-                            <img src={match.team1Id.logoURL} alt={match.team1Id.teamName} className="w-10 h-10 sm:w-12 sm:h-12 object-contain bg-white rounded-full p-1 border border-surface-border shadow-sm shrink-0" />
-                          ) : (
-                            <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-base sm:text-lg border border-primary/20 shrink-0">
-                              {match.team1Id?.teamName?.charAt(0)}
-                            </div>
-                          )}
-                          <span className="font-bold text-txt-primary hidden sm:block truncate pr-2">{match.team1Id?.teamName}</span>
-                          <span className="font-bold text-[13px] text-txt-primary sm:hidden truncate">{match.team1Id?.teamName?.substring(0, 3).toUpperCase()}</span>
-                        </div>
-
-                        {/* Center Area: Scores or VS */}
-                        {match.status === 'scheduled' || !match.scores || match.scores.length === 0 ? (
-                          <div className="font-black italic text-surface-border text-xl sm:text-2xl px-2 sm:px-4 opacity-50 select-none">
-                            V/S
-                          </div>
-                        ) : (
-                          <div className="flex flex-col items-center justify-center px-1 sm:px-4 shrink-0">
-                            <div className="flex items-center gap-3 sm:gap-6">
-                              <div className="text-center">
-                                <div className="font-black text-xl sm:text-3xl tracking-tight text-txt-primary">
-                                  {team1Score?.runs || 0}<span className="text-lg sm:text-2xl text-txt-muted/70">/{team1Score?.wickets || 0}</span>
-                                </div>
-                                <div className="text-[9px] sm:text-[10px] text-txt-muted font-bold tracking-widest mt-0.5">({team1Score?.overs || 0} OV)</div>
-                              </div>
-                              <div className="font-black italic text-surface-border/40 text-sm sm:text-lg select-none">-</div>
-                              <div className="text-center">
-                                <div className="font-black text-xl sm:text-3xl tracking-tight text-txt-primary">
-                                  {team2Score?.runs || 0}<span className="text-lg sm:text-2xl text-txt-muted/70">/{team2Score?.wickets || 0}</span>
-                                </div>
-                                <div className="text-[9px] sm:text-[10px] text-txt-muted font-bold tracking-widest mt-0.5">({team2Score?.overs || 0} OV)</div>
-                              </div>
-                            </div>
-                          </div>
-                        )}
-
-                        {/* Team 2 */}
-                        <div 
-                          onClick={(e) => { e.stopPropagation(); navigate(`/teams/${match.team2Id._id}`); }}
-                          className="flex items-center gap-x-3 sm:gap-x-4 flex-1 justify-end cursor-pointer hover:opacity-80 transition-opacity">
-                          <span className="font-bold text-txt-primary hidden sm:block truncate pl-2 text-right">{match.team2Id?.teamName}</span>
-                          <span className="font-bold text-[13px] text-txt-primary sm:hidden truncate text-right">{match.team2Id?.teamName?.substring(0, 3).toUpperCase()}</span>
-                          
-                          {match.team2Id?.logoURL ? (
-                            <img src={match.team2Id.logoURL} alt={match.team2Id.teamName} className="w-10 h-10 sm:w-12 sm:h-12 object-contain bg-white rounded-full p-1 border border-surface-border shadow-sm shrink-0" />
-                          ) : (
-                            <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-secondary/10 flex items-center justify-center text-secondary font-bold text-base sm:text-lg border border-secondary/20 shrink-0">
-                              {match.team2Id?.teamName?.charAt(0)}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Result summary */}
-                      {match.resultMessage && (
-                        <div className="mt-5 pt-3 border-t border-surface-border/30 text-center">
-                          <span className="text-[11px] font-black uppercase tracking-widest text-[#00cfa7]">{match.resultMessage}</span>
-                        </div>
-                      )}
-                    </Link>
+                  {match.status !== 'scheduled' && s1 && s2 ? (
+                    <div className="flex items-center gap-4 px-4">
+                      <span className="font-black text-xl text-txt-primary">{s1.runs}<span className="text-txt-muted text-base">/{s1.wickets}</span></span>
+                      <span className="text-txt-muted font-bold">-</span>
+                      <span className="font-black text-xl text-txt-primary">{s2.runs}<span className="text-txt-muted text-base">/{s2.wickets}</span></span>
+                    </div>
+                  ) : (
+                    <span className="font-black text-txt-muted text-xl px-4">V/S</span>
+                  )}
+                  <div className="flex items-center gap-3 flex-1 justify-end">
+                    <span className="font-bold text-txt-primary">{match.team2Id.teamName}</span>
+                    <div className="w-10 h-10 rounded-full bg-secondary/10 flex items-center justify-center text-secondary font-bold border border-secondary/20">
+                      {match.team2Id.teamName.charAt(0)}
+                    </div>
                   </div>
                 </div>
-              );
-            })}
-          </div>
-        </div>
-      ) : (
-        <div className="card text-center py-16">
-          <HiOutlineCalendar className="text-5xl text-txt-muted mx-auto mb-3" />
-          <p className="text-txt-muted text-lg">No matches found.</p>
-        </div>
-      )}
+                {match.resultMessage && (
+                  <div className="mt-4 pt-3 border-t border-surface-border/50 text-center">
+                    <span className="text-[11px] font-black uppercase tracking-widest text-accent">{match.resultMessage}</span>
+                  </div>
+                )}
+              </Link>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 };
