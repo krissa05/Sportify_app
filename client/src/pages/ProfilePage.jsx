@@ -1,4 +1,5 @@
-import { HiOutlineUser, HiOutlineMail, HiOutlineTrophy, HiOutlineUserGroup } from 'react-icons/hi';
+import { HiOutlineUser, HiOutlineMail, HiOutlineUserGroup } from 'react-icons/hi';
+import { HiOutlineTrophy } from 'react-icons/hi2';
 import { MdSportsCricket } from 'react-icons/md';
 
 const ProfilePage = () => {
