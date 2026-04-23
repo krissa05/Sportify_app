@@ -3,10 +3,15 @@ const mongoose = require('mongoose');
 const connectDB = async () => {
   try {
     console.log("Attempting to connect to MongoDB...");
-    // Force IPv4 to avoid Jio/Windows DNS issues
-    await mongoose.connect(process.env.MONGO_URI, {
-      family: 4 
+
+    if (!process.env.MONGODB_URI) {
+      throw new Error("MONGODB_URI is not defined in environment variables");
+    }
+
+    await mongoose.connect(process.env.MONGODB_URI, {
+      family: 4,
     });
+
     console.log("✅ MongoDB Connected Successfully");
   } catch (error) {
     console.error("❌ MongoDB Connection Error:", error.message);
