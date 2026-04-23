@@ -1,125 +1,153 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
-import { useSocket } from '../context/SocketContext';
-import api from '../services/api';
-import ScoreCard from '../components/ScoreCard';
-import LiveIndicator from '../components/LiveIndicator';
 import { MdSportsCricket } from 'react-icons/md';
 import { HiOutlinePlus, HiOutlineCollection, HiOutlineUserGroup, HiOutlineChevronDown } from 'react-icons/hi';
 
-const DashboardPage = () => {
-  const { user } = useAuth();
-  const { socket } = useSocket();
-  const [liveMatches, setLiveMatches] = useState([]);
-  const [scheduledMatches, setScheduledMatches] = useState([]);
-  const [recentMatches, setRecentMatches] = useState([]);
-  const [stats, setStats] = useState({ tournaments: 0, teams: 0, matches: 0 });
-  const [scores, setScores] = useState({});
-  const [loading, setLoading] = useState(true);
-  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+// ===== FAKE DEMO DATA =====
+const DEMO_USER = { name: 'Bhavya' };
 
-  const handleDeleteMatch = (deletedMatchId) => {
-    setScheduledMatches(prev => prev.filter(m => m._id !== deletedMatchId));
-    setStats(prev => ({ ...prev, matches: prev.matches - 1 }));
-  };
+const DEMO_LIVE_MATCHES = [
+  {
+    _id: 'match1',
+    status: 'live',
+    venue: 'Wankhede Stadium',
+    tournamentId: { name: 'LOCAL SERIES' },
+    team1Id: { _id: 't1', teamName: 'Mumbai Indians', logoURL: null },
+    team2Id: { _id: 't2', teamName: 'Khaman Dhokla', logoURL: null },
+    scores: [
+      { teamId: 't1', runs: 90, wickets: 0, overs: '6.2' },
+      { teamId: 't2', runs: 0, wickets: 1, overs: '2.1' },
+    ],
+  },
+  {
+    _id: 'match2',
+    status: 'live',
+    venue: 'DY Patil Stadium',
+    tournamentId: { name: 'LOCAL SERIES' },
+    team1Id: { _id: 't3', teamName: 'Mumbai Indians', logoURL: null },
+    team2Id: { _id: 't4', teamName: 'RCB', logoURL: null },
+    scores: [
+      { teamId: 't3', runs: 11, wickets: 0, overs: '2.0' },
+      { teamId: 't4', runs: 22, wickets: 1, overs: '3.0' },
+    ],
+  },
+];
 
-  useEffect(() => {
-    fetchData();
-  }, []);
+const DEMO_RECENT_MATCHES = [
+  {
+    _id: 'match3',
+    status: 'completed',
+    venue: 'Narendra Modi Stadium',
+    tournamentId: { name: 'LOCAL SERIES' },
+    team1Id: { _id: 't5', teamName: 'CSK', logoURL: null },
+    team2Id: { _id: 't6', teamName: 'KKR', logoURL: null },
+    resultMessage: 'CSK won by 24 runs',
+    scores: [
+      { teamId: 't5', runs: 187, wickets: 4, overs: '20.0' },
+      { teamId: 't6', runs: 163, wickets: 8, overs: '20.0' },
+    ],
+  },
+  {
+    _id: 'match4',
+    status: 'completed',
+    venue: 'Chinnaswamy Stadium',
+    tournamentId: { name: 'LOCAL SERIES' },
+    team1Id: { _id: 't7', teamName: 'RCB', logoURL: null },
+    team2Id: { _id: 't8', teamName: 'SRH', logoURL: null },
+    resultMessage: 'RCB won by 6 wickets',
+    scores: [
+      { teamId: 't7', runs: 201, wickets: 4, overs: '19.2' },
+      { teamId: 't8', runs: 198, wickets: 6, overs: '20.0' },
+    ],
+  },
+  {
+    _id: 'match5',
+    status: 'completed',
+    venue: 'Eden Gardens',
+    tournamentId: { name: 'LOCAL SERIES' },
+    team1Id: { _id: 't9', teamName: 'KKR', logoURL: null },
+    team2Id: { _id: 't10', teamName: 'DC', logoURL: null },
+    resultMessage: 'KKR won by 3 wickets',
+    scores: [
+      { teamId: 't9', runs: 156, wickets: 7, overs: '19.4' },
+      { teamId: 't10', runs: 153, wickets: 9, overs: '20.0' },
+    ],
+  },
+];
 
-  useEffect(() => {
-    if (!socket) return;
-    socket.on('scoreUpdated', (data) => {
-      setScores(prev => ({
-        ...prev,
-        [data.matchId]: prev[data.matchId]
-          ? prev[data.matchId].map(s => s.teamId === data.teamId
-            ? { ...s, runs: data.runs, wickets: data.wickets, overs: data.overs }
-            : s)
-          : prev[data.matchId]
-      }));
-    });
+const DEMO_STATS = { tournaments: 4, teams: 8, matches: 12 };
 
-    socket.on('matchDeleted', (data) => {
-      handleDeleteMatch(data.matchId);
-    });
+// ===== SCORE CARD COMPONENT (inline) =====
+const ScoreCard = ({ match }) => {
+  const s1 = match.scores?.[0];
+  const s2 = match.scores?.[1];
+  const isLive = match.status === 'live';
+  const isCompleted = match.status === 'completed';
 
-    socket.on('matchCreated', (newMatch) => {
-      setScheduledMatches(prev => {
-        if (prev.find(m => m._id === newMatch._id)) return prev;
-        return [...prev, newMatch].sort((a, b) => new Date(a.matchDate) - new Date(b.matchDate));
-      });
-      setStats(prev => ({ ...prev, matches: prev.matches + 1 }));
-    });
+  return (
+    <Link to={`/match/${match._id}`}>
+      <div className="card hover:shadow-card-lg transition-all border border-surface-border hover:border-primary/20 p-4 cursor-pointer">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-3">
+          <span className="text-xs text-txt-muted font-medium truncate">{match.tournamentId?.name} • {match.venue}</span>
+          {isLive ? (
+            <span className="flex items-center gap-1 text-[10px] font-black text-accent uppercase tracking-widest">
+              <span className="w-2 h-2 rounded-full bg-accent animate-pulse inline-block"></span>LIVE
+            </span>
+          ) : (
+            <span className="text-[10px] font-bold text-txt-muted uppercase tracking-widest">FINISHED</span>
+          )}
+        </div>
 
-    socket.on('matchStarted', (data) => {
-      // Find the match in scheduled and move to live
-      setScheduledMatches(prev => {
-        const startedMatch = prev.find(m => m._id === data.matchId);
-        if (startedMatch) {
-          setLiveMatches(live => [...live, { ...startedMatch, status: 'live', battingTeamId: data.battingTeamId }]);
-          return prev.filter(m => m._id !== data.matchId);
-        }
-        return prev;
-      });
-    });
+        {/* Teams & Scores */}
+        <div className="space-y-2">
+          {/* Team 1 */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-sm border border-primary/20">
+                {match.team1Id?.teamName?.charAt(0)}
+              </div>
+              <span className="font-bold text-txt-primary text-sm">{match.team1Id?.teamName}</span>
+            </div>
+            {s1 && (
+              <span className="font-black text-txt-primary text-base">
+                {s1.runs}<span className="text-txt-muted font-normal">/{s1.wickets}</span>
+                <span className="text-xs text-txt-muted font-normal ml-1">({s1.overs} ov)</span>
+              </span>
+            )}
+          </div>
 
-    socket.on('matchCompleted', (data) => {
-      setLiveMatches(prev => prev.filter(m => m._id === data.matchId ? false : true));
-      fetchData(); // Simplest way to ensure recent list is correct
-    });
+          {/* Team 2 */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-full bg-secondary/10 flex items-center justify-center text-secondary font-bold text-sm border border-secondary/20">
+                {match.team2Id?.teamName?.charAt(0)}
+              </div>
+              <span className="font-bold text-txt-primary text-sm">{match.team2Id?.teamName}</span>
+            </div>
+            {s2 && (
+              <span className="font-black text-txt-primary text-base">
+                {s2.runs}<span className="text-txt-muted font-normal">/{s2.wickets}</span>
+                <span className="text-xs text-txt-muted font-normal ml-1">({s2.overs} ov)</span>
+              </span>
+            )}
+          </div>
+        </div>
 
-    return () => {
-      socket.off('scoreUpdated');
-      socket.off('matchDeleted');
-      socket.off('matchCreated');
-      socket.off('matchStarted');
-      socket.off('matchCompleted');
-    };
-  }, [socket]);
-
-  const fetchData = async () => {
-    try {
-      const [matchesRes, tournamentsRes, teamsRes] = await Promise.all([
-        api.get('/matches'),
-        api.get('/tournaments'),
-        api.get('/teams')
-      ]);
-
-      const allMatches = matchesRes.data.data;
-      setLiveMatches(allMatches.filter(m => m.status === 'live'));
-      const upcomingMatches = allMatches.filter(m => m.status === 'scheduled').sort((a, b) => new Date(a.matchDate) - new Date(b.matchDate));
-      setScheduledMatches(upcomingMatches);
-      setRecentMatches(allMatches.filter(m => m.status === 'completed').slice(0, 6));
-
-      setStats({
-        tournaments: tournamentsRes.data.data.length,
-        teams: teamsRes.data.data.length,
-        matches: allMatches.length,
-      });
-
-      // Fetch scores for live matches
-      for (const match of allMatches.filter(m => m.status === 'live')) {
-        try {
-          const scoreRes = await api.get(`/matches/${match._id}`);
-          setScores(prev => ({ ...prev, [match._id]: scoreRes.data.data.scores }));
-        } catch (e) { /* ignore */ }
-      }
-    } catch (error) {
-      console.error('Error fetching dashboard data:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-4 border-primary border-t-transparent"></div>
+        {/* Result */}
+        {isCompleted && match.resultMessage && (
+          <div className="mt-3 pt-3 border-t border-surface-border/50 text-center">
+            <span className="text-[11px] font-black uppercase tracking-widest text-accent">{match.resultMessage}</span>
+          </div>
+        )}
       </div>
-    );
-  }
+    </Link>
+  );
+};
+
+// ===== MAIN DASHBOARD =====
+const DashboardPage = () => {
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
   return (
     <div className="space-y-8">
@@ -127,48 +155,59 @@ const DashboardPage = () => {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-txt-primary">
-            Welcome back, <span className="text-primary">{user?.name}</span> 👋
+            Welcome back, <span className="text-primary">{DEMO_USER.name}</span> 👋
           </h1>
         </div>
-        {user && (
-          <div className="relative">
-            <button
-              onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-              onBlur={() => setTimeout(() => setIsDropdownOpen(false), 200)}
-              className="btn-primary inline-flex items-center space-x-2 shadow-lg shadow-primary/20 transition-all hover:scale-[1.02] active:scale-[0.98]"
-            >
-              <HiOutlinePlus className={`text-lg transition-transform ${isDropdownOpen ? 'rotate-45' : ''}`} />
-              <span className="font-bold">Quick Actions</span>
-              <HiOutlineChevronDown className={`text-sm transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`} />
-            </button>
-            
-            {isDropdownOpen && (
-              <div className="absolute right-0 mt-2 w-56 bg-surface-card border border-surface-border rounded-xl shadow-card-lg z-50 overflow-hidden animate-fade-in-down origin-top-right">
-                <Link to="/matches/create" className="flex items-center space-x-3 px-4 py-3 hover:bg-surface-hover hover:text-primary transition-colors border-b border-surface-border/50">
-                  <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
-                    <MdSportsCricket className="text-lg" />
-                  </div>
-                  <span className="font-semibold text-sm">Create New Match</span>
-                </Link>
-                <Link to="/teams?create=true" className="flex items-center space-x-3 px-4 py-3 hover:bg-surface-hover hover:text-secondary transition-colors border-b border-surface-border/50">
-                  <div className="w-8 h-8 rounded-lg bg-secondary/10 flex items-center justify-center text-secondary">
-                    <HiOutlineUserGroup className="text-lg" />
-                  </div>
-                  <span className="font-semibold text-sm">Create New Team</span>
-                </Link>
-                <Link to="/tournaments?create=true" className="flex items-center space-x-3 px-4 py-3 hover:bg-surface-hover hover:text-accent transition-colors">
-                  <div className="w-8 h-8 rounded-lg bg-accent/10 flex items-center justify-center text-accent">
-                    <HiOutlineCollection className="text-lg" />
-                  </div>
-                  <span className="font-semibold text-sm">Start Tournament</span>
-                </Link>
-              </div>
-            )}
-          </div>
-        )}
+        <div className="relative">
+          <button
+            onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+            onBlur={() => setTimeout(() => setIsDropdownOpen(false), 200)}
+            className="btn-primary inline-flex items-center space-x-2 shadow-lg shadow-primary/20"
+          >
+            <HiOutlinePlus className={`text-lg transition-transform ${isDropdownOpen ? 'rotate-45' : ''}`} />
+            <span className="font-bold">Quick Actions</span>
+            <HiOutlineChevronDown className={`text-sm transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`} />
+          </button>
+          {isDropdownOpen && (
+            <div className="absolute right-0 mt-2 w-56 bg-surface-card border border-surface-border rounded-xl shadow-card-lg z-50 overflow-hidden">
+              <Link to="/matches/create" className="flex items-center space-x-3 px-4 py-3 hover:bg-surface-hover hover:text-primary transition-colors border-b border-surface-border/50">
+                <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
+                  <MdSportsCricket className="text-lg" />
+                </div>
+                <span className="font-semibold text-sm">Create New Match</span>
+              </Link>
+              <Link to="/teams" className="flex items-center space-x-3 px-4 py-3 hover:bg-surface-hover hover:text-secondary transition-colors border-b border-surface-border/50">
+                <div className="w-8 h-8 rounded-lg bg-secondary/10 flex items-center justify-center text-secondary">
+                  <HiOutlineUserGroup className="text-lg" />
+                </div>
+                <span className="font-semibold text-sm">Create New Team</span>
+              </Link>
+              <Link to="/tournaments" className="flex items-center space-x-3 px-4 py-3 hover:bg-surface-hover hover:text-accent transition-colors">
+                <div className="w-8 h-8 rounded-lg bg-accent/10 flex items-center justify-center text-accent">
+                  <HiOutlineCollection className="text-lg" />
+                </div>
+                <span className="font-semibold text-sm">Start Tournament</span>
+              </Link>
+            </div>
+          )}
+        </div>
       </div>
 
-
+      {/* Stats */}
+      <div className="grid grid-cols-3 gap-4">
+        <div className="card text-center p-4 border border-surface-border">
+          <p className="text-3xl font-black text-primary">{DEMO_STATS.tournaments}</p>
+          <p className="text-xs text-txt-muted font-bold uppercase tracking-widest mt-1">Tournaments</p>
+        </div>
+        <div className="card text-center p-4 border border-surface-border">
+          <p className="text-3xl font-black text-secondary">{DEMO_STATS.teams}</p>
+          <p className="text-xs text-txt-muted font-bold uppercase tracking-widest mt-1">Teams</p>
+        </div>
+        <div className="card text-center p-4 border border-surface-border">
+          <p className="text-3xl font-black text-accent">{DEMO_STATS.matches}</p>
+          <p className="text-xs text-txt-muted font-bold uppercase tracking-widest mt-1">Matches</p>
+        </div>
+      </div>
 
       {/* LOCAL TOURNAMENTS SECTION */}
       <div>
@@ -180,59 +219,35 @@ const DashboardPage = () => {
             <h2 className="text-xl font-bold text-txt-primary">Local Tournaments</h2>
             <p className="text-sm text-txt-muted">Matches hosted on this platform</p>
           </div>
+          <Link to="/tournaments" className="ml-auto text-primary text-sm font-bold hover:underline">View All →</Link>
         </div>
 
-        {/* Live Local Matches */}
-        {liveMatches.length > 0 && (
-          <div className="mb-6">
-            <div className="flex items-center space-x-3 mb-3">
-              <h3 className="text-md font-bold text-txt-secondary">Live Matches</h3>
-              <LiveIndicator size="sm" />
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-              {liveMatches.map(match => (
-                <ScoreCard key={match._id} match={match} scores={scores[match._id] || []} />
-              ))}
-            </div>
+        {/* Live Matches */}
+        <div className="mb-6">
+          <div className="flex items-center space-x-3 mb-3">
+            <h3 className="text-md font-bold text-txt-secondary">Live Matches</h3>
+            <span className="flex items-center gap-1 text-[10px] font-black text-accent uppercase tracking-widest">
+              <span className="w-2 h-2 rounded-full bg-accent animate-pulse inline-block"></span>LIVE
+            </span>
           </div>
-        )}
-
-        {/* Scheduled/Upcoming Matches */}
-        {scheduledMatches.length > 0 && (
-          <div className="mb-6">
-            <div className="flex items-center space-x-3 mb-3">
-              <h3 className="text-md font-bold text-txt-secondary">Upcoming Matches</h3>
-              <span className="badge bg-secondary/10 text-secondary text-xs font-bold">{scheduledMatches.length}</span>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-              {scheduledMatches.map(match => (
-                <ScoreCard key={match._id} match={match} scores={scores[match._id] || []} onDelete={handleDeleteMatch} />
-              ))}
-            </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+            {DEMO_LIVE_MATCHES.map(match => (
+              <ScoreCard key={match._id} match={match} />
+            ))}
           </div>
-        )}
+        </div>
 
-        {/* Recent Local Matches */}
+        {/* Recent Results */}
         <div>
           <div className="flex items-center justify-between mb-3">
             <h3 className="text-md font-bold text-txt-secondary">Recent Results</h3>
-            <Link to="/fixtures" className="text-secondary text-sm hover:text-secondary-dark font-medium">View Local →</Link>
+            <Link to="/fixtures" className="text-secondary text-sm hover:text-secondary font-medium">View All →</Link>
           </div>
-          {recentMatches.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-              {recentMatches.map(match => (
-                <ScoreCard key={match._id} match={match} scores={[]} />
-              ))}
-            </div>
-          ) : (
-            <div className="card text-center py-12">
-              <MdSportsCricket className="text-5xl text-txt-muted mx-auto mb-3" />
-              <p className="text-txt-muted">No matches yet. Get started by creating a local tournament!</p>
-              {user && (
-                <Link to="/tournaments" className="btn-primary inline-block mt-4">Create Tournament</Link>
-              )}
-            </div>
-          )}
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+            {DEMO_RECENT_MATCHES.map(match => (
+              <ScoreCard key={match._id} match={match} />
+            ))}
+          </div>
         </div>
       </div>
     </div>
